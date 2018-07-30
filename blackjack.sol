@@ -39,8 +39,9 @@ contract blackjack is mortal {
     uint256 numberOfGamesInProgress;
     uint256 nonce;
     
+    event onNewGame(address player, uint bet);
     event onDealCard(address player, Entity toEntity, uint8 card);
-    event onGameOver(address player, Winner winner);
+    event onGameOver(address player, uint8 playerScore, uint8 dealerScore,  Winner winner);
     
     constructor () payable public {
         minBet = .009 ether;
@@ -54,7 +55,8 @@ contract blackjack is mortal {
         require(msg.value <= maxBet);
         require(this.balance >= (numberOfGamesInProgress + 1) * maxBet * 2);
         require(dealersHandValue[msg.sender] == 0);
-        
+
+        emit onNewGame(msg.sender, msg.value);
         playerBetValue[msg.sender] = msg.value;
         numberOfGamesInProgress++;
         
@@ -84,12 +86,12 @@ contract blackjack is mortal {
             
         }
         
-        onDealCard(msg.sender, entity, card);
+        emit onDealCard(msg.sender, entity, card);
     }
     
     function randomNumber(uint8 max) internal returns (uint8 result) {
         nonce++;
-        uint256 value = uint(keccak256(now, block.blockhash(block.number - 1), nonce));
+        uint256 value = uint(keccak256(now, blockhash(block.number - 1), nonce));
         return uint8(value % max + 1);
     }
     
@@ -165,7 +167,7 @@ contract blackjack is mortal {
             msg.sender.transfer(playerBetValue[msg.sender]);
         }
         
-        onGameOver(msg.sender, winner);
+        emit onGameOver(msg.sender, playersHandValue[msg.sender], dealersHandValue[msg.sender], winner);
         playerBetValue[msg.sender] = 0;
         dealersHandValue[msg.sender] = 0;
         playersHandValue[msg.sender] = 0;

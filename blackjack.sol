@@ -25,16 +25,17 @@ contract mortal is owned{
 contract blackjack is mortal {
     
     enum Entity { Player, Dealer }
-    enum GameResult { PlayerWins, DealerWins, Push, PlayerBlackJack }
+    enum GameResult { PlayerWins, DealerWins, Push, PlayerBlackJack, GameTimedOut }
 
     uint256 minBet;
     uint256 maxBet;
-    
-    mapping (address => uint) public playerBetValue;
+
+    mapping (address => uint256) public playerBetValue;
     mapping (address => uint8) public dealersHandValue;
     mapping (address => uint8) public playersHandValue;
     mapping (address => bool) public dealerHasAce;
     mapping (address => bool) public playerHasAce;
+    mapping (address => uint256) public gameStart;
     
     uint256 numberOfGamesInProgress;
     uint256 nonce;
@@ -184,5 +185,12 @@ contract blackjack is mortal {
     function withdraw(uint256 howMuchToWithdraw) public onlyOwner {
         require(this.balance >= numberOfGamesInProgress * maxBet * 2 + howMuchToWithdraw);
         owner.transfer(howMuchToWithdraw);
+    }
+    
+   function playerTimedOut() external onlyOwner{
+       
+        if(gameStart[msg.sender] + 1 hours < now) {                                        
+            gameOver(GameResult.GameTimedOut);
+        }
     }    
 }

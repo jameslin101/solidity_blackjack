@@ -25,7 +25,7 @@ contract mortal is owned{
 contract blackjack is mortal {
     
     enum Entity { Player, Dealer }
-    enum Winner { Player, Dealer, Push }
+    enum GameResult { PlayerWins, DealerWins, Push, PlayerBlackJack }
 
     uint256 minBet;
     uint256 maxBet;
@@ -41,7 +41,7 @@ contract blackjack is mortal {
     
     event onNewGame(address player, uint bet);
     event onDealCard(address player, Entity toEntity, uint8 card);
-    event onGameOver(address player, uint8 playerScore, uint8 dealerScore,  Winner winner);
+    event onGameOver(address player, uint8 playerScore, uint8 dealerScore, GameResult result);
     
     constructor () payable public {
         minBet = .009 ether;
@@ -77,6 +77,11 @@ contract blackjack is mortal {
             if (cardValue == 1) { 
                 playerHasAce[msg.sender];
             }
+
+            if (doesPlayerHave21()) {
+                gameOver(GameResult.PlayerBlackJack);
+            }
+
         } else {
             dealersHandValue[msg.sender] += cardValue;
             
@@ -100,7 +105,7 @@ contract blackjack is mortal {
         dealCard(Entity.Player);
         
         if(hasPlayerBusted()) {
-            gameOver(Winner.Dealer);
+            gameOver(GameResult.DealerWins);
         } else if(doesPlayerHave21()) {
             stand();
         }
@@ -138,7 +143,7 @@ contract blackjack is mortal {
                 dealerScore += 10;
             }
         if(dealerScore > 21) {
-            gameOver(Winner.Player);
+            gameOver(GameResult.PlayerWins);
         } else {
             uint8 playerScore = playersHandValue[msg.sender];
             if(playerScore <= 11
@@ -146,28 +151,29 @@ contract blackjack is mortal {
                     playerScore += 10;
                 }
             if(playerScore > dealerScore) {
-                gameOver(Winner.Player);
+                gameOver(GameResult.PlayerWins);
             } else if (playerScore < dealerScore) {
-                gameOver(Winner.Dealer);
+                gameOver(GameResult.DealerWins);
             } else {
-                gameOver(Winner.Push);
+                gameOver(GameResult.Push);
             }
         }
     }
-    function gameOver(Winner winner) internal {
+    function gameOver(GameResult result) internal {
         
         numberOfGamesInProgress--;
         
-        //Player Wins
-        if(winner == Winner.Player) {
+        if(result  == GameResult.PlayerWins) {
             msg.sender.transfer(playerBetValue[msg.sender] * 2);
-        }
-        //Push
-        if(winner == Winner.Push) {
+        } else if(result == GameResult.Push) {
             msg.sender.transfer(playerBetValue[msg.sender]);
+        } else if(result == GameResult.PlayerBlackJack) {
+            //blackjack pays 1.5x
+            uint256 half_bet = playerBetValue[msg.sender] / 2;
+            msg.sender.transfer(playerBetValue[msg.sender] * 2 + half_bet);
         }
         
-        emit onGameOver(msg.sender, playersHandValue[msg.sender], dealersHandValue[msg.sender], winner);
+        emit onGameOver(msg.sender, playersHandValue[msg.sender], dealersHandValue[msg.sender], result);
         playerBetValue[msg.sender] = 0;
         dealersHandValue[msg.sender] = 0;
         playersHandValue[msg.sender] = 0;
